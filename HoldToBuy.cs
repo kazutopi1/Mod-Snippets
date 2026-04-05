@@ -2,7 +2,6 @@ using StardewValley;
 using StardewValley.Menus;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using MonoGame.Framework;
 
 namespace HoldToBuy
 {
@@ -26,21 +25,11 @@ namespace HoldToBuy
         }
         public void Shopp(object s, UpdateTickedEventArgs e)
         {
-            if (Game1.activeClickableMenu is ShopMenu shop)
+            if (Game1.activeClickableMenu is ShopMenu shop && e.IsMultipleOf(2))
             {
                 if (Helper.Input.IsDown(SButton.MouseLeft))
                 {
-                    Helper.Input.Press(SButton.LeftShift);
                     Helper.Input.Press(SButton.MouseRight);
-
-                    if (shop.heldItem != null)
-                    {
-                        if (shop.heldItem is Item item)
-                        {
-                            Game1.player.addItemToInventory(item);
-                            shop.heldItem = null;
-                        }
-                    }
                 }
             }
         }
