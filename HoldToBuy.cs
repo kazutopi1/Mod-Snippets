@@ -1,11 +1,8 @@
 using StardewValley;
 using StardewValley.Menus;
 using StardewModdingAPI;
-using StardewModdingAPI.Utilities;
 using StardewModdingAPI.Events;
 using System;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace HoldToBuy
 {
@@ -28,7 +25,7 @@ namespace HoldToBuy
                 Helper.Events.GameLoop.UpdateTicked -= this.Shopp;
                 Helper.Events.GameLoop.UpdateTicked += this.Shopp;
             }
-            else
+            else if (e.OldMenu is ShopMenu)
             {
                 Helper.Events.GameLoop.UpdateTicked -= this.Shopp;
             }
@@ -37,20 +34,26 @@ namespace HoldToBuy
         {
             if (Game1.activeClickableMenu is ShopMenu shop)
             {
-                if (Helper.Input.IsDown(SButton.MouseLeft))
+                if (Helper.Input.IsDown(SButton.MouseLeft) || Helper.Input.IsDown(SButton.ControllerA))
                 {
                     delay++;
                     if (delay >= config.GetDelayFrames())
                     {
-                        shop.receiveLeftClick(Game1.getMouseX(true), Game1.getMouseY(true));
+                        if (delay % config.GetBuyFrames() == 0)
+                        {
+                            shop.receiveLeftClick(Game1.getMouseX(true), Game1.getMouseY(true));
+                        }
                     }
 
-                    if (shop.heldItem != null && config.PutItemsInInventory)
+                    if (config.PutItemsInInventory)
                     {
-                        if (shop.heldItem is Item i)
+                        if (shop.heldItem != null)
                         {
-                            Game1.player.addItemToInventory(i);
-                            shop.heldItem = null;
+                            if (shop.heldItem is Item i)
+                            {
+                                Game1.player.addItemToInventory(i);
+                                shop.heldItem = null;
+                            }
                         }
                     }
                 }
@@ -79,6 +82,14 @@ namespace HoldToBuy
                 allowedValues: new string[] { "1", "2", "3" }
             );
 
+            configMenu.AddTextOption(
+                mod: this.ModManifest,
+                name: () => "Buy Speed",
+                getValue: () => this.config.BuySpeed,
+                setValue: value => this.config.BuySpeed = value,
+                allowedValues: new string[] { "60 Items/sec", "30 Items/sec", "15 Items/sec" }
+            );
+
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: () => "Put Items in Inventory",
@@ -91,6 +102,7 @@ namespace HoldToBuy
     {
         public string DelayInSeconds { get; set; } = "2";
         public bool PutItemsInInventory { get; set; } = false;
+        public string BuySpeed { get; set; } = "30 Items/sec";
 
         public int GetDelayFrames()
         {
@@ -100,6 +112,16 @@ namespace HoldToBuy
                 "2" => 120,
                 "3" => 180,
                 _ => 120
+            };
+        }
+        public int GetBuyFrames()
+        {
+            return this.BuySpeed switch
+            {
+                "60 Items/sec" => 1,
+                "30 Items/sec" => 2,
+                "15 Items/sec" => 4,
+                _ => 2
             };
         }
     }
