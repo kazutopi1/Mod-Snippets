@@ -1,47 +1,59 @@
-using StardewValley;
-using StardewValley.Mobile;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using HarmonyLib;
+using StardewValley;
+using StardewValley.Mobile;
+using Microsoft.Xna.Framework;
+using System.Collections.Generic;
 
-namespace blahblah
+namespace Test
 {
-    public class idcifthisdoebntwork : Mod
+    public class Main : Mod
     {
-        private const int tickThreshhold = 2;
-
-        private static int tickCounter = 0;
-
         public override void Entry(IModHelper helper)
         {
-            var harmony = new Harmony(this.ModManifest.UniqueID);
-
-            harmony.Patch(
-                original: AccessTools.Method(typeof(VirtualJoypad), nameof(VirtualJoypad.CheckForTapJoystickAndButtons)),
-                postfix: new HarmonyMethod(typeof(idcifthisdoebntwork), nameof(idcifthisdoebntwork.Postfix))
-            );
+            helper.Events.GameLoop.UpdateTicked += HoldButtonB;
         }
-        private static void Postfix(VirtualJoypad __instance)
+        public void HoldButtonB(object s, UpdateTickedEventArgs e)
         {
-            if (!Context.IsWorldReady || !Context.IsPlayerFree)
-            {
-                tickCounter = 0;
+            if (!e.IsMultipleOf(4) || !Context.IsPlayerFree)
                 return;
-            }
-            if (__instance.buttonBHeld)
-            {
-                tickCounter++;
 
-                if (tickCounter >= tickThreshhold)
+            var v = Game1.virtualJoypad;
+
+            if (v.ButtonBPressed)
+            {
+                var f = Game1.player;
+                var grabTile = f.GetGrabTile();
+                var location = f.currentLocation;
+                int x = (int)grabTile.X * Game1.tileSize;
+                int y = (int)grabTile.Y * Game1.tileSize;
+
+                List<Vector2> adjacentTiles = Utility.getAdjacentTileLocations(f.Tile);
+
+                if (Game1.player.CurrentItem is StardewValley.Object currentItem)
                 {
-                    Game1.currentLocation.tapToMove.mobileKeyStates.actionButtonPressed = true;
-
-                    tickCounter = 0;
+                    if (currentItem.canBePlacedHere(location, grabTile))
+                    {
+                        if (currentItem.isPlaceable() && currentItem.placementAction(Game1.player.currentLocation, x, y, f))
+                        {
+                            f.reduceActiveItemByOne();
+                        }
+                    }
+                    else
+                    {
+                        foreach (Vector2 tile in adjacentTiles)
+                        {
+                            if (location.Objects.TryGetValue(tile, out StardewValley.Object machineTile))
+                            {
+                                if (machineTile.performObjectDropInAction(currentItem, probe: true, f))
+                                {
+                                    machineTile.performObjectDropInAction(currentItem, probe: false, f);
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-            else
-            {
-                tickCounter = 0;
             }
         }
     }
