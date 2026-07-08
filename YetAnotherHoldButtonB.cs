@@ -5,7 +5,7 @@ using StardewValley.Mobile;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 
-namespace Test
+namespace YetAnotherHoldButtonB
 {
     public class Main : Mod
     {
@@ -30,11 +30,24 @@ namespace Test
 
                 List<Vector2> adjacentTiles = Utility.getAdjacentTileLocations(f.Tile);
 
-                if (Game1.player.CurrentItem is StardewValley.Object currentItem)
+                foreach (Vector2 tile in adjacentTiles)
+                {
+                    if (location.Objects.TryGetValue(tile, out StardewValley.Object machineTile))
+                    {
+                        if (machineTile.readyForHarvest.Value && machineTile.heldObject.Value != null)
+                        {
+                            if (machineTile.checkForAction(f, justCheckingForActivity: false))
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (f.CurrentItem is StardewValley.Object currentItem)
                 {
                     if (currentItem.canBePlacedHere(location, grabTile))
                     {
-                        if (currentItem.isPlaceable() && currentItem.placementAction(Game1.player.currentLocation, x, y, f))
+                        if (currentItem.isPlaceable() && currentItem.placementAction(location, x, y, f))
                         {
                             f.reduceActiveItemByOne();
                         }
