@@ -5,22 +5,22 @@ using StardewValley.Mobile;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 
-namespace YetAnotherHoldButtonB
+namespace HoldButtonA
 {
     public class Main : Mod
     {
         public override void Entry(IModHelper helper)
         {
-            helper.Events.GameLoop.UpdateTicked += HoldButtonB;
+            helper.Events.GameLoop.UpdateTicked += HoldButtonA;
         }
-        public void HoldButtonB(object s, UpdateTickedEventArgs e)
+        public void HoldButtonA(object s, UpdateTickedEventArgs e)
         {
-            if (!e.IsMultipleOf(4) || !Context.IsPlayerFree)
+            if (!e.IsMultipleOf(4) || !Context.IsPlayerFree || Game1.player.CurrentItem is StardewValley.Tool)
                 return;
 
             var v = Game1.virtualJoypad;
 
-            if (v.ButtonBPressed)
+            if (v.ButtonAPressed)
             {
                 var f = Game1.player;
                 var grabTile = f.GetGrabTile();
@@ -47,9 +47,12 @@ namespace YetAnotherHoldButtonB
                 {
                     if (currentItem.canBePlacedHere(location, grabTile))
                     {
-                        if (currentItem.isPlaceable() && currentItem.placementAction(location, x, y, f))
+                        if (currentItem.isPlaceable())
                         {
-                            f.reduceActiveItemByOne();
+                            if (currentItem.placementAction(location, x, y, f))
+                            {
+                                f.reduceActiveItemByOne();
+                            }
                         }
                     }
                     else
