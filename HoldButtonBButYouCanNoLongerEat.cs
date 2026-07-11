@@ -2,13 +2,14 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using HarmonyLib;
-using System.Reflection;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
+using System.Collections.Generic;
 
-namespace HoldButtonBButYouCanNoLongerEat
+namespace HoldButtonB
 {
     public class Main : Mod
     {
-        public MethodInfo overrideButtonMethod = AccessTools.Method(Game1.input.GetType(), "OverrideButton");
         public override void Entry(IModHelper helper)
         {
             var harmony = new Harmony(this.ModManifest.UniqueID);
@@ -24,14 +25,20 @@ namespace HoldButtonBButYouCanNoLongerEat
         static bool Prefix(out (int originalEdibility, StardewValley.Object item)? __state)
         {
             __state = null;
+            List<Vector2> adjacentTiles = Utility.getAdjacentTileLocations(Game1.player.Tile);
 
-            if (Game1.player.ActiveObject != null)
+            if (Game1.player.ActiveObject == null || Game1.player.ActiveObject.Edibility == StardewValley.Object.inedible)
+                return true;
+
+            foreach (Vector2 tile in adjacentTiles)
             {
-                if (Game1.player.ActiveObject.Edibility > StardewValley.Object.inedible)
+                if (Game1.player.currentLocation.Objects.TryGetValue(tile, out StardewValley.Object obj))
                 {
                     __state = (Game1.player.ActiveObject.Edibility, Game1.player.ActiveObject);
 
                     Game1.player.ActiveObject.Edibility = StardewValley.Object.inedible;
+
+                    break;
                 }
             }
             return true;
@@ -48,18 +55,14 @@ namespace HoldButtonBButYouCanNoLongerEat
                 }
             }
         }
-        void ButtonB(object s, UpdateTickedEventArgs e)
+        static void ButtonB(object s, UpdateTickedEventArgs e)
         {
-            if (!e.IsMultipleOf(4))
+            if (!e.IsMultipleOf(4) || !Context.IsPlayerFree)
                 return;
 
-            if (overrideButtonMethod != null)
+            if (Game1.virtualJoypad.ButtonBPressed)
             {
-                if (Game1.virtualJoypad.ButtonBPressed)
-                {
-                    Helper.Input.Suppress(SButton.MouseLeft);
-                    overrideButtonMethod.Invoke(Game1.input, new object[] { SButton.MouseRight, true });
-                }
+                Game1.pressActionButton(Keyboard.GetState(), Mouse.GetState(), GamePad.GetState(PlayerIndex.One));
             }
         }
     }
