@@ -4,8 +4,9 @@ using StardewValley;
 using StardewValley.Mobile;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
+using StardewValley.TerrainFeatures;
 
-namespace HoldButtonA
+namespace YetAnotherHoldButtonA
 {
     public class Main : Mod
     {
@@ -28,7 +29,7 @@ namespace HoldButtonA
                 int x = (int)grabTile.X * Game1.tileSize;
                 int y = (int)grabTile.Y * Game1.tileSize;
 
-                List<Vector2> adjacentTiles = Utility.getAdjacentTileLocations(f.Tile);
+                var adjacentTiles = Utility.getSurroundingTileLocationsArray(f.Tile);
 
                 foreach (Vector2 tile in adjacentTiles)
                 {
@@ -65,6 +66,25 @@ namespace HoldButtonA
                                 {
                                     machineTile.performObjectDropInAction(currentItem, probe: false, f);
                                     break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (location.terrainFeatures.TryGetValue(grabTile, out var feature))
+                {
+                    if (feature is HoeDirt hoeDirt)
+                    {
+                        if (hoeDirt.crop != null)
+                        {
+                            if (hoeDirt.readyForHarvest())
+                            {
+                                if (hoeDirt.crop.harvest((int)grabTile.X, (int)grabTile.Y, hoeDirt))
+                                {
+                                    if (hoeDirt.crop.GetData() == null || hoeDirt.crop.GetData().RegrowDays == -1)
+                                    {
+                                        hoeDirt.destroyCrop(false);
+                                    }
                                 }
                             }
                         }
