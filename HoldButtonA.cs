@@ -3,7 +3,6 @@ using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Mobile;
 using Microsoft.Xna.Framework;
-using System.Collections.Generic;
 using StardewValley.TerrainFeatures;
 
 namespace YetAnotherHoldButtonA
@@ -33,9 +32,9 @@ namespace YetAnotherHoldButtonA
 
                 foreach (Vector2 tile in adjacentTiles)
                 {
-                    if (location.Objects.TryGetValue(tile, out StardewValley.Object machineTile))
+                    if (location.Objects.TryGetValue(tile, out var machineTile))
                     {
-                        if (machineTile.readyForHarvest.Value && machineTile.heldObject.Value != null)
+                        if (machineTile.readyForHarvest.Value)
                         {
                             if (machineTile.checkForAction(f, justCheckingForActivity: false))
                             {
@@ -46,15 +45,9 @@ namespace YetAnotherHoldButtonA
                 }
                 if (f.CurrentItem is StardewValley.Object currentItem)
                 {
-                    if (currentItem.canBePlacedHere(location, grabTile))
+                    if (Utility.tryToPlaceItem(location, currentItem, x, y))
                     {
-                        if (currentItem.isPlaceable())
-                        {
-                            if (currentItem.placementAction(location, x, y, f))
-                            {
-                                f.reduceActiveItemByOne();
-                            }
-                        }
+                        //
                     }
                     else
                     {
@@ -75,16 +68,20 @@ namespace YetAnotherHoldButtonA
                 {
                     if (feature is HoeDirt hoeDirt)
                     {
-                        if (hoeDirt.crop != null)
+                        if (hoeDirt.crop != null && hoeDirt.readyForHarvest())
                         {
-                            if (hoeDirt.readyForHarvest())
+                            if (hoeDirt.crop.GetData() != null)
                             {
-                                if (hoeDirt.crop.harvest((int)grabTile.X, (int)grabTile.Y, hoeDirt))
+                                if (hoeDirt.crop.GetData().HarvestMethod == StardewValley.GameData.Crops.HarvestMethod.Scythe)
                                 {
-                                    if (hoeDirt.crop.GetData() == null || hoeDirt.crop.GetData().RegrowDays == -1)
-                                    {
-                                        hoeDirt.destroyCrop(false);
-                                    }
+                                    return;
+                                }
+                            }
+                            if (hoeDirt.crop.harvest((int)grabTile.X, (int)grabTile.Y, hoeDirt))
+                            {
+                                if (hoeDirt.crop.GetData()?.RegrowDays == -1)
+                                {
+                                    hoeDirt.destroyCrop(false);
                                 }
                             }
                         }
