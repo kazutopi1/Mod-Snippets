@@ -1,68 +1,126 @@
 using StardewModdingAPI;
-using StardewModdingAPI.Events;
 using StardewValley;
+using System.Reflection;
 using HarmonyLib;
+using StardewValley.Mobile;
+using System;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
-using System.Collections.Generic;
 
-namespace HoldButtonB
+namespace SmapiWayButtonB
 {
     public class Main : Mod
     {
+        private static int ticks = 0;
+        private const int tickThreshhold = 2;
+        private static bool wasBDown = false;
+        static IMonitor _monitor;
+
         public override void Entry(IModHelper helper)
         {
-            var harmony = new Harmony(this.ModManifest.UniqueID);
+            _monitor = this.Monitor;
 
+            if (Constants.TargetPlatform != GamePlatform.Android)
+            {
+                Monitor.Log("This only works for the mobile version of the game.", LogLevel.Error);
+                return;
+            }
+            var harmony = new Harmony(this.ModManifest.UniqueID);
+            harmony.Patch(
+                original: AccessTools.Method(typeof(VirtualJoypad), nameof(VirtualJoypad.CheckForTapJoystickAndButtons)),
+                postfix: new HarmonyMethod(typeof(Main), nameof(Main.CheckForTapJoystickAndButtons_Postfix))
+            );
             harmony.Patch(
                 original: AccessTools.Method(typeof(Game1), nameof(Game1.pressActionButton)),
-                prefix: new HarmonyMethod(typeof(Main), nameof(Main.Prefix)),
-                postfix: new HarmonyMethod(typeof(Main), nameof(Main.Postfix))
+                prefix: new HarmonyMethod(typeof(Main), nameof(Main.pressActionButton_Prefix)),
+                postfix: new HarmonyMethod(typeof(Main), nameof(Main.pressActionButton_Postfix))
             );
-
-            helper.Events.GameLoop.UpdateTicked += ButtonB;
         }
-        static bool Prefix(out (int originalEdibility, StardewValley.Object item)? __state)
+        static void CheckForTapJoystickAndButtons_Postfix(VirtualJoypad __instance)
+        {
+            try
+            {
+                if (!Context.IsPlayerFree)
+                {
+                    return;
+                }
+                if (__instance.buttonBHeld)
+                {
+                    if (!wasBDown)
+                    {
+                        Game1.player.currentLocation.tapToMove.mobileKeyStates.actionButtonPressed = true;
+                        ticks = 0;
+                    }
+                    else
+                    {
+                        ticks++;
+                        if (ticks >= tickThreshhold)
+                        {
+                            Game1.player.currentLocation.tapToMove.mobileKeyStates.actionButtonPressed = true;
+                            ticks = 0;
+                        }
+                    }
+                    wasBDown = true;
+                }
+                else
+                {
+                    ticks = 0;
+                    wasBDown = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _monitor.LogOnce($"{ex}", LogLevel.Error);
+            }
+        }
+        private static bool pressActionButton_Prefix(out (int originalEdibility, StardewValley.Object item)? __state)
         {
             __state = null;
-            List<Vector2> adjacentTiles = Utility.getAdjacentTileLocations(Game1.player.Tile);
+            try
+            {
+                if (Game1.player.ActiveObject == null || Game1.player.ActiveObject.Edibility == StardewValley.Object.inedible)
+                    return true;
 
-            if (Game1.player.ActiveObject == null || Game1.player.ActiveObject.Edibility == StardewValley.Object.inedible)
+                var surroundingTile = Utility.getSurroundingTileLocationsArray(Game1.player.Tile);
+
+                foreach (Vector2 tile in surroundingTile)
+                {
+                    if (Game1.player.currentLocation.Objects.TryGetValue(tile, out var obj))
+                    {
+                        if (obj.GetMachineData() != null)
+                        {
+                            __state = (Game1.player.ActiveObject.Edibility, Game1.player.ActiveObject);
+
+                            Game1.player.ActiveObject.Edibility = StardewValley.Object.inedible;
+
+                            break;
+                        }
+                    }
+                }
                 return true;
-
-            foreach (Vector2 tile in adjacentTiles)
-            {
-                if (Game1.player.currentLocation.Objects.TryGetValue(tile, out StardewValley.Object obj))
-                {
-                    __state = (Game1.player.ActiveObject.Edibility, Game1.player.ActiveObject);
-
-                    Game1.player.ActiveObject.Edibility = StardewValley.Object.inedible;
-
-                    break;
-                }
             }
-            return true;
-        }
-        static void Postfix((int originalEdibility, StardewValley.Object item)? __state)
-        {
-            if (__state.HasValue)
+            catch (Exception ex)
             {
-                var savedValue = __state.Value;
-
-                if (savedValue.item != null)
-                {
-                    savedValue.item.Edibility = savedValue.originalEdibility;
-                }
+                _monitor.LogOnce($"{ex}", LogLevel.Error);
+                return true;
             }
         }
-        static void ButtonB(object s, UpdateTickedEventArgs e)
+        private static void pressActionButton_Postfix((int originalEdibility, StardewValley.Object item)? __state)
         {
-            if (!e.IsMultipleOf(4) || !Context.IsPlayerFree)
-                return;
-
-            if (Game1.virtualJoypad.ButtonBPressed)
+            try
             {
-                Game1.pressActionButton(Keyboard.GetState(), Mouse.GetState(), GamePad.GetState(PlayerIndex.One));
+                if (__state.HasValue)
+                {
+                    var savedValue = __state.Value;
+
+                    if (savedValue.item != null)
+                    {
+                        savedValue.item.Edibility = savedValue.originalEdibility;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _monitor.LogOnce($"{ex}", LogLevel.Error);
             }
         }
     }
