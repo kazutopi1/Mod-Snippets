@@ -65,6 +65,7 @@ namespace SmapiWayButtonB
                 {
                     ticks = 0;
                     wasBDown = false;
+                    Game1.player.currentLocation.tapToMove.mobileKeyStates.actionButtonPressed = false;
                 }
             }
             catch (Exception ex)
