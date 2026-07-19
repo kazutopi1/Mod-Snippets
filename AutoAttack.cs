@@ -11,8 +11,6 @@ namespace AutoAttack
 {
     public class Main : Mod
     {
-        Rectangle grabTile_Rect = new Rectangle(0, 0, 0, 0);
-
         public override void Entry(IModHelper helper)
         {
             helper.Events.GameLoop.UpdateTicked += CheckForCollision;
@@ -27,19 +25,31 @@ namespace AutoAttack
             {
                 return;
             }
-
-            var mobileKeyStates = Game1.player.currentLocation.tapToMove.mobileKeyStates;
-
-            grabTile_Rect.X = (int)Game1.player.GetGrabTile().X * Game1.tileSize;
-            grabTile_Rect.Y = (int)Game1.player.GetGrabTile().Y * Game1.tileSize;
-            grabTile_Rect.Width = Game1.tileSize;
-            grabTile_Rect.Height = Game1.tileSize;
-
-            foreach (NPC npc in Game1.player.currentLocation.characters)
+            if (Game1.player.CurrentItem is MeleeWeapon melee)
             {
-                if (npc is Monster m && m.GetBoundingBox().Intersects(grabTile_Rect))
+                int x = (int)Game1.player.Position.X;
+                int y = (int)Game1.player.Position.Y;
+                int facingDirection = Game1.player.FacingDirection;
+                Vector2 tileLocation1 = Vector2.Zero;
+                Vector2 tileLocation2 = Vector2.Zero;
+                Rectangle wielderBoundingBox = Game1.player.GetBoundingBox();
+                int indexInCurrentAnimation = Game1.player.FarmerSprite.currentAnimationIndex;
+
+                Rectangle weaponAoE = melee.getAreaOfEffect(
+                    x,
+                    y,
+                    facingDirection,
+                    ref tileLocation1,
+                    ref tileLocation2,
+                    wielderBoundingBox,
+                    indexInCurrentAnimation
+                );
+
+                var mobileKeyStates = Game1.player.currentLocation.tapToMove.mobileKeyStates;
+
+                foreach (NPC npc in Game1.player.currentLocation.characters)
                 {
-                    if (Game1.player.CurrentItem is MeleeWeapon)
+                    if (npc is Monster m && m.GetBoundingBox().Intersects(weaponAoE))
                     {
                         if (!Game1.player.IsBusyDoingSomething())
                         {
@@ -47,10 +57,10 @@ namespace AutoAttack
                             break;
                         }
                     }
-                }
-                else
-                {
-                    mobileKeyStates.useToolButtonPressed = false;
+                    else
+                    {
+                        mobileKeyStates.useToolButtonPressed = false;
+                    }
                 }
             }
         }
