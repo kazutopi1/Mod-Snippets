@@ -1,46 +1,56 @@
 using StardewValley;
-using StardewValley.Monsters;
 using StardewModdingAPI;
 using HarmonyLib;
+using System;
 using StardewModdingAPI.Events;
+using StardewValley.Monsters;
 using Microsoft.Xna.Framework;
 using StardewValley.Tools;
 
-namespace testmob
+namespace AutoAttack
 {
     public class Main : Mod
     {
+        Rectangle grabTile_Rect = new Rectangle(0, 0, 0, 0);
+
         public override void Entry(IModHelper helper)
         {
-            helper.Events.GameLoop.UpdateTicked += Check;
+            helper.Events.GameLoop.UpdateTicked += CheckForCollision;
         }
-        public void Check(object s, UpdateTickedEventArgs e)
+        private void CheckForCollision(object s, UpdateTickedEventArgs e)
         {
-            if (!Context.IsWorldReady || !Context.IsPlayerFree
-            || Game1.player == null || Game1.player.currentLocation?.characters == null
-            )
+            if (!Context.IsWorldReady || !Context.IsPlayerFree)
             {
                 return;
             }
-            var grabTile_Rect = new Rectangle(
-                (int)Game1.player.GetGrabTile().X * Game1.tileSize,
-                (int)Game1.player.GetGrabTile().Y * Game1.tileSize,
-                Game1.tileSize,
-                Game1.tileSize
-            );
-            foreach (var character in Game1.player?.currentLocation?.characters)
+            if (Game1.player == null || Game1.currentLocation == null)
             {
-                if (character is Monster m && m.GetBoundingBox().Intersects(grabTile_Rect))
+                return;
+            }
+
+            var mobileKeyStates = Game1.player.currentLocation.tapToMove.mobileKeyStates;
+
+            grabTile_Rect.X = (int)Game1.player.GetGrabTile().X * Game1.tileSize;
+            grabTile_Rect.Y = (int)Game1.player.GetGrabTile().Y * Game1.tileSize;
+            grabTile_Rect.Width = Game1.tileSize;
+            grabTile_Rect.Height = Game1.tileSize;
+
+            foreach (NPC npc in Game1.player.currentLocation.characters)
+            {
+                if (npc is Monster m && m.GetBoundingBox().Intersects(grabTile_Rect))
                 {
-                    if (Game1.player?.CurrentItem is MeleeWeapon melee)
+                    if (Game1.player.CurrentItem is MeleeWeapon)
                     {
-                        Game1.player.currentLocation.tapToMove.mobileKeyStates.useToolButtonPressed = true;
-                        break;
+                        if (!Game1.player.IsBusyDoingSomething())
+                        {
+                            mobileKeyStates.useToolButtonPressed = true;
+                            break;
+                        }
                     }
                 }
                 else
                 {
-                    Game1.player.currentLocation.tapToMove.mobileKeyStates.useToolButtonPressed = false;
+                    mobileKeyStates.useToolButtonPressed = false;
                 }
             }
         }
